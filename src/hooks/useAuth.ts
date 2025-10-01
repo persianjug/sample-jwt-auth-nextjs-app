@@ -3,6 +3,8 @@ import { useRouter } from "next/navigation";
 import { getJwtToken, setJwtToken } from "@/utils/jwtMemoryStorage";
 import * as authService from "@/services/authService";
 import { AppRoutes } from "@/constants/routes";
+import { createLogger } from "@/utils/logger";
+import { AUTH_MESSAGES } from "@/constants/logMessages";
 
 /**
  * 認証状態、ログイン、ログアウトの処理を提供するカスタムフック。
@@ -13,19 +15,29 @@ import { AppRoutes } from "@/constants/routes";
  * @property {() => Promise<void>} logout - ログアウト処理を実行する関数。
  */
 const useAuth = () => {
+  // APIリクエスト中を示すフラグ */
   const [isLoading, setIsLoading] = useState(true);
+  // 認証状態の取得
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  // Next.jsのルーターインスタンス */
   const router = useRouter();
+  // ロガーインスタンスを作成
+  const authLogger = createLogger("AUTH");
 
   // アプリケーション起動時の初期化チェック
   useEffect(() => {
     const checkInitialAuth = () => {
+      authLogger.debug(AUTH_MESSAGES.INITIAL_CHECK_START, null, "checkInitialAuth")
       try {
         if (getJwtToken()) {
           setIsAuthenticated(true);
+          authLogger.info(AUTH_MESSAGES.JWT_FOUND, null, "checkInitialAuth");
+        } else {
+          authLogger.info(AUTH_MESSAGES.JWT_NOT_FOUND, null, "checkInitialAuth");
         }
       } finally {
         setIsLoading(false);
+        authLogger.debug(AUTH_MESSAGES.CHECK_COMPLETED, null, "checkInitialAuth");
       }
     };
     checkInitialAuth();
@@ -44,14 +56,14 @@ const useAuth = () => {
 
       // 1. アクセストークンをメモリに保存
       setJwtToken(jwtToken);
-      // setRefreshToken(refreshToken);
 
       // 2. RefreshTokenはサーバー側でHttpOnly Cookieに自動で設定されることを期待
       setIsAuthenticated(true);
       router.push(AppRoutes.DASHBOARD);
+      authLogger.info(AUTH_MESSAGES.LOGIN_SUCCESS, null, "login");
       return { jwtToken, refreshToken }
     } catch (error) {
-      console.error("Login failed:", error);
+      authLogger.error(AUTH_MESSAGES.LOGIN_ERROR, error, "login");
       setIsAuthenticated(false);
       throw error;
     }
@@ -65,9 +77,9 @@ const useAuth = () => {
   const logout = useCallback(async () => {
     try {
       const message = await authService.logout();
-      console.log("ログアウト成功メッセージ:", message);
+      authLogger.info(AUTH_MESSAGES.LOGOUT_API_SUCCESS, message, "logout");
     } catch (error) {
-      console.error("ログアウト中にエラー:", error);
+      authLogger.info(AUTH_MESSAGES.LOGOUT_API_ERROR, error, "logout");
     } finally {
       setJwtToken(null); // クライアント側のトークンをメモリから削除
       setIsAuthenticated(false);

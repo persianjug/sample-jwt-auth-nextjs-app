@@ -25,13 +25,10 @@ export const useProtectedResource = <T>(
     resourceKey: Key,
     fetcher: Fetcher<T>
 ): SWRResponse<T, any> & { isAuthenticated: boolean } => {
-
     // 認証状態の取得
     const { isAuthenticated } = useAuth();
-
     // SWR のキーを定義。認証済みの場合のみキーを持つようにする。
     const swrKey = isAuthenticated ? resourceKey : null;
-
     // SWRのオプション定義
     const swrOptions = {
         revalidateOnFocus: true, // 画面にフォーカスが戻ったら自動再フェッチ

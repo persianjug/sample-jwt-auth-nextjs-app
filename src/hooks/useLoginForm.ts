@@ -1,5 +1,8 @@
 import { useState, useCallback, useMemo } from "react";
 import useAuth from "@/hooks/useAuth";
+import { createLogger } from "@/utils/logger";
+import { FORM_MESSAGES } from "@/constants/logMessages";
+import { UI_FORM_MESSAGES } from "@/constants/uiMessages";
 
 /**
  * @typedef {object} LoginFormHook
@@ -39,18 +42,25 @@ const useLoginForm = (): LoginFormHook => {
   const [isLoading, setIsLoading] = useState(false);
   // 認証フックからログイン関数を取得
   const { login } = useAuth();
+  // ロガーインスタンスを作成
+  const formLogger = createLogger("FORM");
 
   /**
    * フォーム送信イベントを処理し、認証APIを呼び出します。
    * 成功した場合、useAuthフックがリダイレクトを処理します。
-   * @param {React.FormEvent} e - フォームイベントオブジェクト。
+   * @param {React.FormEvent} e - フォームイベントオブジェクト
    */
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
+    // 処理開始ログ
+    const funcName = "handleSubmit";
+    formLogger.debug(FORM_MESSAGES.SUBMIT_START, null, funcName);
+
     if (!username || !password) {
-      setError("ユーザー名とパスワードを入力してください。");
+      setError(UI_FORM_MESSAGES.LOGIN_MISSING_FIELDS);
+      formLogger.info(FORM_MESSAGES.VALIDATION_EMPTY, null, funcName);
       return;
     }
 
@@ -59,10 +69,11 @@ const useLoginForm = (): LoginFormHook => {
     try {
       await login(username, password);
     } catch (err) {
-      setError("ログインに失敗しました。ユーザー名またはパスワードが正しくありません。");
-      console.error("Login error details:", err);
+      setError(UI_FORM_MESSAGES.LOGIN_FAILED_GENERIC);
+      formLogger.error(FORM_MESSAGES.LOGIN_FAILED, err, funcName);
     } finally {
       setIsLoading(false);
+      formLogger.debug(FORM_MESSAGES.SUBMIT_END, null, funcName);
     }
   }, [login, username, password]);
 

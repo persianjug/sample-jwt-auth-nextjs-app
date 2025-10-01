@@ -3,6 +3,9 @@ import { useRouter } from "next/navigation";
 import * as authService from '@/services/authService';
 import axios from "axios";
 import { AppRoutes } from "@/constants/routes";
+import { createLogger } from "@/utils/logger";
+import { FORM_MESSAGES } from "@/constants/logMessages";
+import { UI_FORM_MESSAGES } from "@/constants/uiMessages";
 
 /**
  * @typedef {object} SignupFormHook
@@ -53,6 +56,8 @@ const useSignupForm = (): SignupFormHook => {
   const [isLoading, setIsLoading] = useState(false);
   // Next.jsのルーターインスタンス */
   const router = useRouter();
+  // ロガーインスタンスを作成
+  const signupLogger = createLogger("SIGNUP_FORM");
 
   /**
    * フォーム送信イベントを処理し、ユーザー登録APIを呼び出します。
@@ -67,8 +72,13 @@ const useSignupForm = (): SignupFormHook => {
     setError("");
     setSuccess("");
 
+    // 処理開始ログ (DEBUG)
+    const funcName = "handleSubmit";
+    signupLogger.debug(FORM_MESSAGES.SUBMIT_START, null, funcName);
+
     if (password !== confirmPassword) {
-      setError("パスワードと確認用パスワードが一致しません。");
+      setError(UI_FORM_MESSAGES.SIGNUP_PASSWORD_MISMATCH);
+      signupLogger.info(FORM_MESSAGES.PASSWORD_MISMATCH, null, funcName);
       return;
     }
 
@@ -76,19 +86,34 @@ const useSignupForm = (): SignupFormHook => {
 
     try {
       await authService.signup({ username, password });
-      setSuccess("ユーザー登録が完了しました！ログインページへ移動します。");
+      setSuccess(UI_FORM_MESSAGES.SIGNUP_SUCCESS);
+      signupLogger.info(FORM_MESSAGES.SIGNUP_API_SUCCESS, { username }, funcName);
+
       // 成功メッセージ表示後、ログインページへリダイレクト
       setTimeout(() => {
         router.push(AppRoutes.LOGIN);
       }, 1500);
     } catch (err) {
-      // エラー処理（Axiosのエラーからメッセージを抽出）
-      const errorMessage = (axios.isAxiosError(err) && err.response?.data)
-        ? (typeof err.response.data === "string" ? err.response.data : "登録処理中にエラーが発生しました。")
-        : "登録処理中にエラーが発生しました。";
+      // 1. Axiosエラーであるかチェック
+      let errorMessage = UI_FORM_MESSAGES.SIGNUP_FAILED_GENERIC;
+      if (axios.isAxiosError(err) && err.response?.data) {
+        const responseData = err.response.data;
+
+        // 2. レスポンスデータが文字列であれば、それをそのままメッセージとする
+        if (typeof responseData === "string") {
+          errorMessage = responseData;
+        }
+        // 3. レスポンスデータがオブジェクトでも、適切なエラーメッセージフィールドがあれば利用できるが、
+        //    ここでは「文字列でなければ汎用メッセージ」という元のロジックを維持
+      }
       setError(errorMessage);
+      signupLogger.error(
+        FORM_MESSAGES.SIGNUP_API_ERROR,
+        { error: err, extractedMessage: errorMessage },
+        funcName);
     } finally {
       setIsLoading(false);
+      signupLogger.debug(FORM_MESSAGES.SUBMIT_END, null, funcName);
     }
   }, [username, password, confirmPassword, router]);
 
