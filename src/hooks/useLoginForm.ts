@@ -3,6 +3,10 @@ import useAuth from "@/hooks/useAuth";
 import { createLogger } from "@/utils/logger";
 import { FORM_MESSAGES } from "@/constants/logMessages";
 import { UI_FORM_MESSAGES } from "@/constants/uiMessages";
+import { useRouter } from "next/navigation";
+import { AppRoutes } from "@/constants/routes";
+import { withMinDuration } from "@/utils/withMinDuration";
+import { UX_CONFIG } from "@/constants/uxConfig";
 
 /**
  * @typedef {object} LoginFormHook
@@ -44,6 +48,8 @@ const useLoginForm = (): LoginFormHook => {
   const { login } = useAuth();
   // ロガーインスタンスを作成
   const formLogger = createLogger("FORM");
+  // Next.jsのルーターインスタンス */
+  const router = useRouter();
 
   /**
    * フォーム送信イベントを処理し、認証APIを呼び出します。
@@ -64,15 +70,24 @@ const useLoginForm = (): LoginFormHook => {
       return;
     }
 
+    // 処理開始時刻を記録し、ローディングを開始
     setIsLoading(true);
 
     try {
-      await login(username, password);
+      await withMinDuration(
+        () => login(username, password), // 実行したい非同期関数
+        UX_CONFIG.MIN_LOADING_DURATION_MS, // 最小待機時間
+      );
+
+      // 処理が成功し、待機が完了したため、ローディングを解除しリダイレクト
+      setIsLoading(false);
+      formLogger.debug(FORM_MESSAGES.LOGIN_SUCESS, null, funcName);
+      router.push(AppRoutes.DASHBOARD);
     } catch (err) {
       setError(UI_FORM_MESSAGES.LOGIN_FAILED_GENERIC);
       formLogger.error(FORM_MESSAGES.LOGIN_FAILED, err, funcName);
-    } finally {
       setIsLoading(false);
+    } finally {
       formLogger.debug(FORM_MESSAGES.SUBMIT_END, null, funcName);
     }
   }, [login, username, password]);

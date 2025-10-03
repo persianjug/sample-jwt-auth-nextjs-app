@@ -33,7 +33,7 @@ const useAuthGuard = (): AuthGuardHook => {
     }
   }, [isAuthenticated, isAuthLoading, router]);
 
-  // ★ 認証チェックが完了するまで、またはリダイレクトが確定するまで true
+  // 認証チェックが完了するまで、またはリダイレクトが確定するまで true
   const shouldBlockUI = isAuthLoading || (!isAuthenticated && !isAuthLoading);
 
   // リダイレクトが実行された後は、DashboardPageはnullを返すのが自然なので、

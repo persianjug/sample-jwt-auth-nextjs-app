@@ -59,7 +59,7 @@ const useAuth = () => {
 
       // 2. RefreshTokenはサーバー側でHttpOnly Cookieに自動で設定されることを期待
       setIsAuthenticated(true);
-      router.push(AppRoutes.DASHBOARD);
+      // router.push(AppRoutes.DASHBOARD);
       authLogger.info(AUTH_MESSAGES.LOGIN_SUCCESS, null, "login");
       return { jwtToken, refreshToken }
     } catch (error) {
